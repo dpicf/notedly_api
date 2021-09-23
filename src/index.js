@@ -1,3 +1,6 @@
+/* API запросов и мутаций */
+
+
 const express = require('express'); // зависимость Express
 const { ApolloServer, gql } = require('apollo-server-express'); // зависимость GraphQL
 
