@@ -1,30 +1,13 @@
-/* API запросов и мутаций */
-
-
 const express = require('express'); // зависимость Express
 const { ApolloServer, gql } = require('apollo-server-express'); // зависимость GraphQL
+require('dotenv').config(); // импорт конфигурации .env
+
+const db = require('./db'); // импорт файла БД
+const models = require('./models'); // добавление моделей из каталога models
 
 // Запускаем сервер на порте, указанном в файле .env, или на порте 4000
 const port = process.env.PORT || 4000;
-
-// заметки пока что хранятся в памяти
-let notes = [
-  {
-    id: '1',
-    content: 'Заметка 1',
-    author: 'Пользователь 1'
-  },
-  {
-    id: '2',
-    content: 'Заметка 2 Заметка 2',
-    author: 'Пользователь 2'
-  },
-  {
-    id: '3',
-    content: 'Заметка 3 Заметка 3 Заметка 3',
-    author: 'Пользователь 3'
-  }
-];
+const DB_HOST = process.env.DB_HOST; // подключение к mongoDB из .env
 
 // Построение схемы с использованием языка схем GraphQL
 // notes: [Note] возвращает массив
@@ -49,29 +32,29 @@ const typeDefs = gql`
 `;
 
 // Предоставляем функции распознавания для полей схемы
-// запросы идут к typeDefs => type Query
 const resolvers = {
   Query: {
     hello: () => 'Hello world!',
-    notes: () => notes,
-    note: (parent, args) => {
-      return notes.find(note => note.id === args.id); // запрос-поиск по id
+    notes: async () => {
+      return await models.Note.find(); // вывести все записи из БД
+    },
+    note: async (parent, args) => {
+      return await models.Note.findById(args.id); // поиск заметки по id
     }
   },
-  Mutation: { // распознаватель мутации
-    newNote: (parent, args) => { // typeDefs => type Mutation
-      let noteValue = {
-        id: String(notes.length + 1), // считаем кол-во записей в БД и добавляем единицу
-        content: args.content, // берём текст записи из аругментов
-        author: 'Пользователь' // жестко записываем имя автора
-      };
-      notes.push(noteValue); // записываем новую заметку в БД
-      return noteValue; // выводит ответ с новыми content, ID и author
+  Mutation: {
+    newNote: async (parent, args) => {
+      return await models.Note.create({ // создание новой заметки
+        content: args.content,
+        author: 'Пользователь'
+      });
     }
   }
 };
 
-const app = express(); // приложеие работает на express.js
+const app = express();
+
+db.connect(DB_HOST);
 
 // Настройка Apollo Server
 const server = new ApolloServer({ typeDefs, resolvers });
