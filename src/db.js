@@ -1,3 +1,5 @@
+/* файл настройки БД */
+
 // Затребуем библиотеку mongoose
 const mongoose = require('mongoose');
 
