@@ -1,4 +1,4 @@
-/* модель БД */
+/* модель БД заметки */
 
 // Запросим библиотеку mongoose
 const mongoose = require('mongoose');
@@ -16,7 +16,7 @@ const noteSchema = new mongoose.Schema(
     }
   },
   {
-    // Присваиваем поля createdAt и updatedAt с типом данных
+    // Присваиваем поля createdAt и updatedAt с типом Date
     timestamps: true
   }
 );

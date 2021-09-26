@@ -1,8 +1,9 @@
-const Note = require('./note'); // зависимость от note.js
+const Note = require('./note');
+const User = require('./user');
 
-// добавляем модель заметки Note
 const models = {
-  Note
+  Note,
+  User
 };
 
 module.exports = models;
