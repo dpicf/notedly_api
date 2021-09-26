@@ -6,42 +6,112 @@ const {
   AuthenticationError,
   ForbiddenError
 } = require('apollo-server-express');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const gravatar = require('../util/gravatar');
 
 module.exports = {
-  newNote: async (parent, args, { models }) => {
+  newNote: async (parent, args, { models, user }) => {
+    // Если в контексте нет пользователя, выбрасываем AuthenticationError
+    if (!user) {
+      throw new AuthenticationError('Вы должны быть авторизованы для создания заметки');
+    }
+
     return await models.Note.create({
       content: args.content,
-      author: 'Пользователь'
+      author: mongoose.Types.ObjectId(user.id), // Ссылаемся на mongo id автора
+      favoriteCount: 0
     });
   },
-  deleteNote: async (parent, { id }, { models }) => {
+  deleteNote: async (parent, { id }, { models, user }) => {
+    if (!user) {
+      throw new AuthenticationError('Вы должны быть авторизованы, чтобы удалить заметку');
+    }
+
+    // находим заметку
+    const note = await models.Note.findById(id);
+    // Если владелец заметки и текущий пользователь не совпадают, выбрасываем forbidden error
+    if (note && String(note.author) !== user.id) {
+      throw new ForbiddenError("У вас нет прав на удаление этой заметки");
+    }
+
     try {
-      await models.Note.findOneAndRemove({ _id: id });
+      await note.remove(); // Если все проверки проходят, удаляем заметку
       return true;
     } catch (err) {
-      return false;
+      return false; // Если в процессе возникает ошибка, возвращаем false
     }
   },
-  updateNote: async (parent, { content, id }, { models }) => {
-    try {
-      return await models.Note.findOneAndUpdate(
-        { // поиск по id
-          _id: id
-        },
+  updateNote: async (parent, { content, id }, { models, user }) => {
+    if (!user) {
+      throw new AuthenticationError('Вы должны быть авторизованы, чтобы обновить заметку');
+    }
+
+    // находим заметку
+    const note = await models.Note.findById(id);
+    // Если владелец заметки и текущий пользователь не совпадают, выбрасываем forbidden error
+    if (note && String(note.author) !== user.id) {
+      throw new ForbiddenError("У вас нет прав на обновление этой заметки");
+    }
+
+    // Обновляем заметку в БД и возвращаем ее в обновленном виде
+    return await models.Note.findOneAndUpdate(
+      {
+        _id: id
+      },
+      {
+        $set: {
+          content
+        }
+      },
+      {
+        new: true
+      }
+    );
+  },
+  toggleFavorite: async (parent, { id }, { models, user }) => {
+    if (!user) {
+      throw new AuthenticationError();
+    }
+
+    // Проверяем, отмечал ли пользователь заметку как избранную
+    let noteCheck = await models.Note.findById(id);
+    const hasUser = noteCheck.favoritedBy.indexOf(user.id);
+
+    // Если пользователь есть в списке, удаляем его оттуда и уменьшаем значение favoriteCount на 1
+    if (hasUser >= 0) {
+      return await models.Note.findByIdAndUpdate(
+        id,
         {
-          $set: { // новое содержимое заметки
-            content
+          $pull: {
+            favoritedBy: mongoose.Types.ObjectId(user.id)
+          },
+          $inc: {
+            favoriteCount: -1
           }
         },
-        { // возврат обновлённой заметки
+        {
+          // Устанавливаем new как true, чтобы вернуть обновленный документ
           new: true
         }
       );
-    } catch (err) {
-      throw new Error('Ошибка обновления записи');
+    } else {
+      // Если пользователя в списке нет, добавляем его туда и увеличиваем значение favoriteCount на 1
+      return await models.Note.findByIdAndUpdate(
+        id,
+        {
+          $push: {
+            favoritedBy: mongoose.Types.ObjectId(user.id)
+          },
+          $inc: {
+            favoriteCount: 1
+          }
+        },
+        {
+          new: true
+        }
+      );
     }
   },
   signUp: async (parent, { username, email, password }, { models }) => {
