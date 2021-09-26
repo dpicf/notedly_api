@@ -1,3 +1,5 @@
+/* модель БД */
+
 // Запросим библиотеку mongoose
 const mongoose = require('mongoose');
 
