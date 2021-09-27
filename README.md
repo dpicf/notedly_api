@@ -1,1 +1,1 @@
-API для Notedly
+API работы с БД для Notedly
