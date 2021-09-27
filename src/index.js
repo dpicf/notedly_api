@@ -3,12 +3,16 @@
 const express = require('express');
 const { ApolloServer } = require('apollo-server-express');
 const jwt = require('jsonwebtoken');
-require('dotenv').config(); // импорт конфигурации .env
+const helmet = require('helmet');
+const cors = require('cors');
+const depthLimit = require('graphql-depth-limit');
+const { createComplexityLimitRule } = require('graphql-validation-complexity');
+require('dotenv').config();
 
-const db = require('./db'); // импорт файла БД
-const models = require('./models'); // добавление моделей из каталога models
-const typeDefs = require('./schema'); // схема БД
-const resolvers = require('./resolvers'); // код распознователей
+const db = require('./db');
+const models = require('./models');
+const typeDefs = require('./schema');
+const resolvers = require('./resolvers');
 
 // Запускаем сервер на порте, указанном в файле .env, или на порте 4000
 const port = process.env.PORT || 4000;
@@ -17,6 +21,11 @@ const DB_HOST = process.env.DB_HOST; // подключение к mongoDB из .
 const app = express();
 
 db.connect(DB_HOST);
+
+// Security middleware
+app.use(helmet());
+// CORS middleware
+app.use(cors());
 
 // Получаем информацию пользователя из JWT
 const getUser = token => {
@@ -35,6 +44,7 @@ const getUser = token => {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  validationRules: [depthLimit(5), createComplexityLimitRule(1000)],
   context: ({ req }) => {
     // Получаем токен пользователя из заголовков
     const token = req.headers.authorization;
